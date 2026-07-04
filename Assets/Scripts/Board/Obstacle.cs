@@ -45,7 +45,7 @@ public class Obstacle : MonoBehaviour
         trunk.transform.parent = transform;
         trunk.transform.localPosition = new Vector3(0f, 0.3f, 0f);
         trunk.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
-        trunk.GetComponent<Renderer>().material.color = new Color(0.3f, 0.5f, 0.2f);
+        trunk.GetComponent<Renderer>().sharedMaterial.color = new Color(0.3f, 0.5f, 0.2f);
         Destroy(trunk.GetComponent<Collider>());
 
         GameObject crown = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -53,7 +53,7 @@ public class Obstacle : MonoBehaviour
         crown.transform.parent = transform;
         crown.transform.localPosition = new Vector3(0f, 0.65f, 0f);
         crown.transform.localScale = new Vector3(0.5f, 0.4f, 0.5f);
-        crown.GetComponent<Renderer>().material.color = new Color(0.2f, 0.6f, 0.15f);
+        crown.GetComponent<Renderer>().sharedMaterial.color = new Color(0.2f, 0.6f, 0.15f);
         Destroy(crown.GetComponent<Collider>());
     }
 

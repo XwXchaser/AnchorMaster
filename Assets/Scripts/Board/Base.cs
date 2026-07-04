@@ -29,6 +29,7 @@ public class Base : MonoBehaviour
         GridManager.Instance.GetCell(_gridPosition, _isOurBase).IsOccupied = true;
         GridManager.Instance.GetCell(_gridPosition, _isOurBase).Occupant = gameObject;
         CreateVisual();
+        OnHpChanged.Invoke(CurrentHp, _maxHp);
     }
 
     private void CreateVisual()

@@ -47,8 +47,16 @@ public class CardDeck : MonoBehaviour
     {
         if (phase == TurnPhase.Preparation)
             DrawToFillHand();
+        else if (phase == TurnPhase.Battle)
+            AutoDeployHand();
         else if (phase == TurnPhase.RoundEnd)
             EndRoundCleanup();
+    }
+
+    private void AutoDeployHand()
+    {
+        while (_hand.Count > 0)
+            PlayCard(0);
     }
 
     public void DrawToFillHand()

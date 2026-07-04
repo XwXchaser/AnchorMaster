@@ -34,12 +34,17 @@ public class BoardVisualizer : MonoBehaviour
 
         Destroy(plane.GetComponent<Collider>());
 
+        var renderer = plane.GetComponent<Renderer>();
         if (mat != null)
-            plane.GetComponent<Renderer>().material = mat;
+            renderer.sharedMaterial = mat;
         else
-            plane.GetComponent<Renderer>().material.color = isOurSide
+        {
+            var mpb = new MaterialPropertyBlock();
+            mpb.SetColor("_Color", isOurSide
                 ? new Color(0.2f, 0.3f, 0.6f)
-                : new Color(0.6f, 0.2f, 0.2f);
+                : new Color(0.6f, 0.2f, 0.2f));
+            renderer.SetPropertyBlock(mpb);
+        }
     }
 
     private void CreateGridLines(GridManager gm, bool isOurSide)
@@ -58,7 +63,10 @@ public class BoardVisualizer : MonoBehaviour
             line.transform.parent = holder.transform;
             line.transform.position = origin + new Vector3(x * gm.CellSize, lineY, h / 2f);
             line.transform.localScale = new Vector3(0.04f, 0.02f, h);
-            line.GetComponent<Renderer>().material.color = color;
+            var lineRenderer = line.GetComponent<Renderer>();
+            var lineMpb = new MaterialPropertyBlock();
+            lineMpb.SetColor("_Color", color);
+            lineRenderer.SetPropertyBlock(lineMpb);
             Destroy(line.GetComponent<Collider>());
         }
         for (int gy = 0; gy <= gm.Height; gy++)
@@ -68,7 +76,10 @@ public class BoardVisualizer : MonoBehaviour
             line.transform.parent = holder.transform;
             line.transform.position = origin + new Vector3(w / 2f, lineY, gy * gm.CellSize);
             line.transform.localScale = new Vector3(w, 0.02f, 0.04f);
-            line.GetComponent<Renderer>().material.color = color;
+            var lineRenderer2 = line.GetComponent<Renderer>();
+            var lineMpb2 = new MaterialPropertyBlock();
+            lineMpb2.SetColor("_Color", color);
+            lineRenderer2.SetPropertyBlock(lineMpb2);
             Destroy(line.GetComponent<Collider>());
         }
     }
