@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SpawnEntry
+public struct SpawnEntry
 {
     public string UnitName;
     public bool IsOurUnit;
@@ -23,6 +23,7 @@ public class SpawnQueue : MonoBehaviour
     private List<SpawnEntry> _pendingSpawns = new List<SpawnEntry>();
     private List<SpawnEntry> _activeTimers = new List<SpawnEntry>();
     private bool _isSpawning;
+    private int _totalSpawnedThisRound;
 
     private void Awake()
     {
@@ -31,7 +32,8 @@ public class SpawnQueue : MonoBehaviour
 
     private void OnEnable()
     {
-        GameManager.Instance.OnPhaseChanged.AddListener(OnPhaseChanged);
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnPhaseChanged.AddListener(OnPhaseChanged);
     }
 
     private void OnDisable()
@@ -42,10 +44,10 @@ public class SpawnQueue : MonoBehaviour
 
     private void OnPhaseChanged(TurnPhase phase)
     {
-        Debug.Log($"[SpawnQueue] OnPhaseChanged: {phase}, pending: {_pendingSpawns.Count}");
         if (phase == TurnPhase.Battle)
         {
             _isSpawning = true;
+            _totalSpawnedThisRound = 0;
             _activeTimers.Clear();
             for (int i = 0; i < _pendingSpawns.Count; i++)
             {
@@ -54,6 +56,7 @@ public class SpawnQueue : MonoBehaviour
                 _activeTimers.Add(entry);
             }
             _pendingSpawns.Clear();
+            Debug.Log($"[SpawnQueue] Battle phase: {_activeTimers.Count} spawns queued");
         }
         else if (phase == TurnPhase.RoundEnd)
         {
@@ -63,22 +66,40 @@ public class SpawnQueue : MonoBehaviour
         }
     }
 
-    private int _frameCount;
     private void Update()
     {
         if (!_isSpawning) return;
-
-        _frameCount++;
-        if (_frameCount <= 5)
-            Debug.Log($"[SpawnQueue] Update frame {_frameCount}, activeTimers: {_activeTimers.Count}");
+        if (_activeTimers.Count == 0)
+        {
+            _isSpawning = false;
+            return;
+        }
 
         float dt = Time.deltaTime;
         for (int i = _activeTimers.Count - 1; i >= 0; i--)
         {
-            _activeTimers[i].Timer -= dt;
-            if (_activeTimers[i].Timer <= 0f)
+            var entry = _activeTimers[i];
+            entry.Timer -= dt;
+            _activeTimers[i] = entry;
+
+            if (entry.Timer <= 0f)
             {
-                SpawnUnit(_activeTimers[i]);
+                _totalSpawnedThisRound++;
+                if (_totalSpawnedThisRound > 50)
+                {
+                    Debug.LogError($"[SpawnQueue] ABORT: spawned {_totalSpawnedThisRound} units, something wrong!");
+                    _isSpawning = false;
+                    _activeTimers.Clear();
+                    return;
+                }
+                try
+                {
+                    SpawnUnit(entry);
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogError($"[SpawnQueue] SpawnUnit failed: {e.Message}");
+                }
                 _activeTimers.RemoveAt(i);
             }
         }
@@ -86,7 +107,6 @@ public class SpawnQueue : MonoBehaviour
 
     private void SpawnUnit(SpawnEntry entry)
     {
-        Debug.Log($"[SpawnQueue] Spawning {entry.UnitName}, activeTimers left: {_activeTimers.Count}");
         var bases = FindObjectsOfType<Base>();
         Base spawnBase = null;
         foreach (var b in bases)
@@ -99,9 +119,8 @@ public class SpawnQueue : MonoBehaviour
             return;
         }
 
-        Vector2Int spawnPos = spawnBase.GetSpawnGridPos();
-        if (GridManager.Instance.GetCell(spawnPos, entry.IsOurUnit).IsOccupied)
-            spawnPos = FindFreeAdjacent(spawnPos, entry.IsOurUnit);
+        Vector2Int spawnPos = spawnBase.GridPosition;
+        Debug.Log($"[SpawnQueue] Spawning {entry.UnitName} ourUnit={entry.IsOurUnit}, base={spawnBase.name} grid={spawnBase.GridPosition}, spawnGrid={spawnPos}");
 
         GameObject unitObj;
         if (_unitPrefab != null)
@@ -113,42 +132,19 @@ public class SpawnQueue : MonoBehaviour
         var unit = unitObj.GetComponent<Unit>();
         if (unit == null) unit = unitObj.AddComponent<Unit>();
 
-        SetSerializedField(unit, "_unitName", entry.UnitName);
-        SetSerializedField(unit, "_maxHp", entry.Hp);
-        SetSerializedField(unit, "_attack", entry.Attack);
-        SetSerializedField(unit, "_attackSpeed", entry.AttackSpeed);
-        SetSerializedField(unit, "_attackRange", entry.AttackRange);
-        SetSerializedField(unit, "_moveSpeed", entry.MoveSpeed);
-
-        unit.Initialize(entry.IsOurUnit, spawnPos);
+        unit.Initialize(entry.IsOurUnit, spawnPos,
+            entry.UnitName, entry.Hp, entry.Attack,
+            entry.AttackSpeed, entry.AttackRange, entry.MoveSpeed);
         BattleResolver.Instance?.RegisterUnit(unit);
-    }
-
-    private Vector2Int FindFreeAdjacent(Vector2Int pos, bool isOurBoard)
-    {
-        var offsets = new[] {
-            new Vector2Int(1,0), new Vector2Int(-1,0), new Vector2Int(0,1), new Vector2Int(0,-1),
-            new Vector2Int(1,1), new Vector2Int(-1,1), new Vector2Int(1,-1), new Vector2Int(-1,-1)
-        };
-        foreach (var off in offsets)
-        {
-            var test = pos + off;
-            if (GridManager.Instance.IsInBounds(test) && !GridManager.Instance.GetCell(test, isOurBoard).IsOccupied)
-                return test;
-        }
-        return pos;
-    }
-
-    private void SetSerializedField(object obj, string fieldName, object value)
-    {
-        var field = obj.GetType().GetField(fieldName, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        if (field != null) field.SetValue(obj, value);
     }
 
     public void EnqueueSpawn(SpawnEntry entry)
     {
         _pendingSpawns.Add(entry);
     }
+
+    public int PendingCount => _pendingSpawns.Count;
+    public int ActiveCount => _activeTimers.Count;
 
     public void ClearQueue()
     {

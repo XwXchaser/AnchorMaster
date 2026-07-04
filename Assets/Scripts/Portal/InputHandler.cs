@@ -2,37 +2,74 @@ using UnityEngine;
 
 public class InputHandler : MonoBehaviour
 {
-    [SerializeField] private LayerMask _boardLayerMask = ~0;
+    [SerializeField] private Camera _ourCamera;
+    [SerializeField] private Camera _enemyCamera;
 
-    private Camera _ourCamera;
-    private Camera _enemyCamera;
-    private bool _isOverOurBoard;
+    private int _boardLayerMask;
 
-    private void Start()
+    private void Awake()
     {
-        var cams = FindObjectsOfType<Camera>();
-        foreach (var cam in cams)
-        {
-            if (cam.name == "OurBoardCamera") _ourCamera = cam;
-            else if (cam.name == "EnemyBoardCamera") _enemyCamera = cam;
-        }
+        _boardLayerMask = LayerMask.GetMask("OurBoard", "EnemyBoard");
     }
 
     private void Update()
     {
+        if (GameManager.Instance == null) return;
         if (GameManager.Instance.CurrentPhase != TurnPhase.Preparation) return;
 
         if (Input.GetMouseButtonDown(0))
             HandleClick(PortalType.Our);
         else if (Input.GetMouseButtonDown(1))
             HandleClick(PortalType.Enemy);
+
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+            HandleObstaclePlace();
+        else if (Input.GetKeyDown(KeyCode.Alpha2))
+            HandleObstacleRemove();
+    }
+
+    private void HandleObstaclePlace()
+    {
+        if (!TryGetGridFromMouse(out Vector2Int gridPos, out bool isOurBoard)) return;
+        ObstacleManager.Instance?.PlaceObstacle(gridPos, isOurBoard);
+    }
+
+    private void HandleObstacleRemove()
+    {
+        if (!TryGetGridFromMouse(out Vector2Int gridPos, out bool isOurBoard)) return;
+        var cell = GridManager.Instance.GetCell(gridPos, isOurBoard);
+        if (cell != null && cell.Occupant != null)
+        {
+            var obs = cell.Occupant.GetComponent<Obstacle>();
+            if (obs != null)
+                obs.DestroyObstacle();
+        }
+    }
+
+    private bool TryGetGridFromMouse(out Vector2Int gridPos, out bool isOurBoard)
+    {
+        gridPos = Vector2Int.zero;
+        isOurBoard = false;
+
+        Vector3 mousePos = Input.mousePosition;
+        Camera targetCam = mousePos.x < Screen.width / 2f ? _ourCamera : _enemyCamera;
+        if (targetCam == null) return false;
+
+        Ray ray = targetCam.ScreenPointToRay(mousePos);
+        if (!Physics.Raycast(ray, out RaycastHit hit, 100f, _boardLayerMask)) return false;
+
+        bool isOurBoardHit = hit.collider.name.Contains("OurBoard");
+        bool isEnemyBoardHit = hit.collider.name.Contains("EnemyBoard");
+        if (!isOurBoardHit && !isEnemyBoardHit) return false;
+
+        gridPos = GridManager.Instance.WorldToGrid(hit.point, isOurBoardHit);
+        isOurBoard = isOurBoardHit;
+        return true;
     }
 
     private void HandleClick(PortalType type)
     {
         Vector3 mousePos = Input.mousePosition;
-
-        // Determine which board the mouse is over based on viewport
         bool isOverOurBoard = mousePos.x < Screen.width / 2f;
         Camera targetCam = isOverOurBoard ? _ourCamera : _enemyCamera;
 
@@ -41,8 +78,8 @@ public class InputHandler : MonoBehaviour
         Ray ray = targetCam.ScreenPointToRay(mousePos);
         if (Physics.Raycast(ray, out RaycastHit hit, 100f, _boardLayerMask))
         {
-            bool isOurBoardHit = hit.collider.name == "OurBoard" || hit.collider.name.StartsWith("Our");
-            bool isEnemyBoardHit = hit.collider.name == "EnemyBoard" || hit.collider.name.StartsWith("Enemy");
+            bool isOurBoardHit = hit.collider.name.Contains("OurBoard");
+            bool isEnemyBoardHit = hit.collider.name.Contains("EnemyBoard");
 
             if (!isOurBoardHit && !isEnemyBoardHit) return;
 

@@ -4,11 +4,11 @@ public class GridManager : MonoBehaviour
 {
     public static GridManager Instance { get; private set; }
 
-    [SerializeField] private int _width = 8;
-    [SerializeField] private int _height = 6;
+    [SerializeField] private int _width = 10;
+    [SerializeField] private int _height = 10;
     [SerializeField] private float _cellSize = 1f;
-    [SerializeField] private Vector3 _ourBoardOrigin = new Vector3(-6f, 0f, 0f);
-    [SerializeField] private Vector3 _enemyBoardOrigin = new Vector3(6f, 0f, 0f);
+    [SerializeField] private Vector3 _ourBoardOrigin = new Vector3(-11f, 0f, 0f);
+    [SerializeField] private Vector3 _enemyBoardOrigin = new Vector3(1f, 0f, 0f);
 
     public int Width => _width;
     public int Height => _height;
@@ -60,7 +60,9 @@ public class GridManager : MonoBehaviour
     public Vector3 GetBoardCenter(bool isOurSide)
     {
         Vector3 origin = isOurSide ? _ourBoardOrigin : _enemyBoardOrigin;
-        return origin + new Vector3((_width - 1) * _cellSize / 2f, 0f, (_height - 1) * _cellSize / 2f);
+        float halfW = _width * _cellSize / 2f;
+        float halfH = _height * _cellSize / 2f;
+        return origin + new Vector3(halfW, 0f, halfH);
     }
 
     public Vector3 GetBoardOrigin(bool isOurSide)

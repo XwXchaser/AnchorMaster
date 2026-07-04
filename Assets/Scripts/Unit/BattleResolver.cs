@@ -9,6 +9,8 @@ public class BattleResolver : MonoBehaviour
 
     private List<Unit> _activeUnits = new List<Unit>();
 
+    public List<Unit> GetActiveUnits() => _activeUnits;
+
     private void Awake()
     {
         Instance = this;
@@ -56,29 +58,39 @@ public class BattleResolver : MonoBehaviour
     private void EndBattle()
     {
         _battleActive = false;
-        _activeUnits.Clear();
+        _activeUnits.RemoveAll(u => u == null || u.State == UnitState.Dead);
 
-        // Check if any side has remaining units
-        var allUnits = FindObjectsOfType<Unit>();
         bool ourAlive = false, enemyAlive = false;
-        foreach (var u in allUnits)
+        int ourSurvivors = 0, enemySurvivors = 0;
+        foreach (var u in _activeUnits)
         {
             if (u.State == UnitState.Dead) continue;
-            if (u.IsOurUnit) ourAlive = true;
-            else enemyAlive = true;
+            if (u.IsOurUnit) { ourAlive = true; ourSurvivors++; }
+            else { enemyAlive = true; enemySurvivors++; }
         }
 
-        if (!ourAlive && !enemyAlive) return; // Both dead, no damage
+        if (!ourAlive && !enemyAlive) return;
 
-        // If one side has survivors and the other doesn't, survivors damage enemy base
         if (ourAlive && !enemyAlive)
         {
-            Debug.Log("我方存活单位对敌方基地造成伤害！");
+            var bases = FindObjectsOfType<Base>();
+            foreach (var b in bases)
+            {
+                if (!b.IsOurBase)
+                    b.TakeDamage(ourSurvivors * 3);
+            }
         }
         else if (!ourAlive && enemyAlive)
         {
-            Debug.Log("敌方存活单位对我方基地造成伤害！");
+            var bases = FindObjectsOfType<Base>();
+            foreach (var b in bases)
+            {
+                if (b.IsOurBase)
+                    b.TakeDamage(enemySurvivors * 3);
+            }
         }
+
+        _activeUnits.Clear();
     }
 
     public void RegisterUnit(Unit unit)

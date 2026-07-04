@@ -516,7 +516,8 @@ namespace Locus
             int rc = NativeSetBackgroundHookActive(true);
             if (rc < 0)
             {
-                // Native background hook not available on this platform; cross-process hook handles it silently.
+                Debug.LogWarning(
+                    "[Locus] Native background hook unavailable; the cross-process hook will handle it.");
                 return;
             }
 

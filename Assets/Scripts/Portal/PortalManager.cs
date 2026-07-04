@@ -1,10 +1,11 @@
 using UnityEngine;
+using UnityEngine.AI;
 
 public class PortalManager : MonoBehaviour
 {
     public static PortalManager Instance { get; private set; }
 
-    [SerializeField] private float _minPortalDistance = 1.5f;
+    [SerializeField] private float _minPortalDistance = 0.5f;
 
     private Portal _ourPortalOurSide;
     private Portal _ourPortalEnemySide;
@@ -30,11 +31,8 @@ public class PortalManager : MonoBehaviour
 
     private void CreatePortals()
     {
-        GridManager gm = GridManager.Instance;
-
-        // Default positions: our portal at left-center, enemy portal at right-center
-        Vector2Int ourDefault = new Vector2Int(2, 3);
-        Vector2Int enemyDefault = new Vector2Int(5, 3);
+        Vector2Int ourDefault = new Vector2Int(4, 5);
+        Vector2Int enemyDefault = new Vector2Int(5, 5);
 
         _ourPortalOurSide = CreatePortalObject("OurPortal_OurSide", PortalType.Our, true, ourDefault);
         _ourPortalEnemySide = CreatePortalObject("OurPortal_EnemySide", PortalType.Our, false, ourDefault);
@@ -63,46 +61,28 @@ public class PortalManager : MonoBehaviour
     public bool CanPlacePortal(Vector2Int gridPos, bool isOnOurBoard, PortalType placingType)
     {
         GridManager gm = GridManager.Instance;
-        if (!gm.IsInBounds(gridPos)) return false;
-
-        var otherPortals = new[]
+        if (!gm.IsInBounds(gridPos))
         {
-            GetPortalOnBoard(PortalType.Our, isOnOurBoard),
-            GetPortalOnBoard(PortalType.Enemy, isOnOurBoard)
-        };
-
-        foreach (var p in otherPortals)
-        {
-            if (p == null) continue;
-            if (p.Type == placingType) continue; // Same type can be replaced
-            Vector3 myWorld = gm.GridToWorld(gridPos, isOnOurBoard);
-            Vector3 otherWorld = gm.GridToWorld(p.GridPosition, isOnOurBoard);
-            if (Vector3.Distance(myWorld, otherWorld) < _minPortalDistance)
-                return false;
+            Debug.Log($"[PortalManager] CanPlace rejected: gridPos={gridPos} out of bounds");
+            return false;
         }
 
+        var cell = gm.GetCell(gridPos, isOnOurBoard);
+        Portal myPortal = GetPortalOnBoard(placingType, isOnOurBoard);
+        if (cell != null && cell.IsOccupied && cell.Occupant != myPortal.gameObject)
+        {
+            Debug.Log($"[PortalManager] CanPlace rejected: gridPos={gridPos} occupied by {cell.Occupant.name}");
+            return false;
+        }
+
+        Debug.Log($"[PortalManager] CanPlace accepted: gridPos={gridPos}, board={(isOnOurBoard?"Our":"Enemy")}, type={placingType}");
         return true;
     }
 
     public void PlacePortal(Vector2Int gridPos, bool isOnOurBoard, PortalType type)
     {
         if (!CanPlacePortal(gridPos, isOnOurBoard, type)) return;
-
-        Portal portalOurSide = GetPortalOnBoard(type, true);
-        Portal portalEnemySide = GetPortalOnBoard(type, false);
-
-        if (isOnOurBoard)
-        {
-            portalOurSide.MoveTo(gridPos);
-            // Mirror position on enemy board
-            if (GridManager.Instance.IsInBounds(gridPos))
-                portalEnemySide.MoveTo(gridPos);
-        }
-        else
-        {
-            portalEnemySide.MoveTo(gridPos);
-            if (GridManager.Instance.IsInBounds(gridPos))
-                portalOurSide.MoveTo(gridPos);
-        }
+        Portal portal = GetPortalOnBoard(type, isOnOurBoard);
+        portal.MoveTo(gridPos);
     }
 }

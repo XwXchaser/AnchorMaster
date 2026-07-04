@@ -49,6 +49,15 @@ public class GameManager : MonoBehaviour
                 EndBattle();
             }
         }
+
+        // Test shortcuts
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            if (_currentPhase == TurnPhase.Preparation)
+                EndPreparation();
+            else if (_currentPhase == TurnPhase.RoundEnd)
+                NextRound();
+        }
     }
 
     public void EndPreparation()
@@ -56,6 +65,20 @@ public class GameManager : MonoBehaviour
         if (_currentPhase != TurnPhase.Preparation) return;
         _currentPhase = TurnPhase.Battle;
         BattleTimeRemaining = _battleTimeLimit;
+
+        // Test: enqueue one our unit for quick testing
+        SpawnQueue.Instance?.EnqueueSpawn(new SpawnEntry
+        {
+            UnitName = "先锋骑士",
+            IsOurUnit = true,
+            SpawnDelay = 0.5f,
+            Hp = 10,
+            Attack = 3,
+            AttackSpeed = 1f,
+            AttackRange = 1.5f,
+            MoveSpeed = 1.5f
+        });
+
         OnPhaseChanged.Invoke(TurnPhase.Battle);
     }
 
